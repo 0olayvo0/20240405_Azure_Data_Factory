@@ -3,7 +3,12 @@
 	"properties": {
 		"linkedServiceName": {
 			"referenceName": "IncrementalSource",
-			"type": "LinkedServiceReference"
+			"type": "LinkedServiceReference",
+			"parameters": {
+				"ContainerName": "container",
+				"DirectoryName": "directory",
+				"SourceFile": "file"
+			}
 		},
 		"parameters": {
 			"ContainerName": {
