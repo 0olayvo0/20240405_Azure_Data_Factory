@@ -612,15 +612,15 @@
 											"type": "DatasetReference",
 											"parameters": {
 												"TargetDatabase": {
-													"value": "item().TargetDatabase",
+													"value": "@trim(item().TargetDatabase)",
 													"type": "Expression"
 												},
 												"TargetSchema": {
-													"value": "item().TargetSchema",
+													"value": "@trim(item().TargetSchema)",
 													"type": "Expression"
 												},
 												"TargetTable": {
-													"value": "item().TargetTable ",
+													"value": "@trim(item().TargetTable)",
 													"type": "Expression"
 												}
 											}
