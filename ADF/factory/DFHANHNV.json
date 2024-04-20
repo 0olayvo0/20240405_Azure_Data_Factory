@@ -1,0 +1,9 @@
+{
+	"name": "DFHANHNV",
+	"location": "southeastasia",
+	"identity": {
+		"type": "SystemAssigned",
+		"principalId": "8ec4a34a-c269-46f2-8d22-d125801b4cb5",
+		"tenantId": "f4308c54-0208-43d3-afad-1f8df2f678b7"
+	}
+}

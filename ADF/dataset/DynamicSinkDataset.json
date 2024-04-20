@@ -1,0 +1,51 @@
+{
+	"name": "DynamicSinkDataset",
+	"properties": {
+		"linkedServiceName": {
+			"referenceName": "IncrementalSink",
+			"type": "LinkedServiceReference",
+			"parameters": {
+				"TargetDatabase": {
+					"value": "@dataset().TargetDatabase",
+					"type": "Expression"
+				},
+				"TargetSchema": {
+					"value": "@dataset().TargetSchema",
+					"type": "Expression"
+				},
+				"TargetTable": {
+					"value": "@dataset().TargetTable",
+					"type": "Expression"
+				}
+			}
+		},
+		"parameters": {
+			"TargetDatabase": {
+				"type": "String",
+				"defaultValue": "database"
+			},
+			"TargetSchema": {
+				"type": "String",
+				"defaultValue": "schema"
+			},
+			"TargetTable": {
+				"type": "String",
+				"defaultValue": "table"
+			}
+		},
+		"annotations": [],
+		"type": "AzureSqlTable",
+		"schema": [],
+		"typeProperties": {
+			"schema": {
+				"value": "@dataset().TargetSchema",
+				"type": "Expression"
+			},
+			"table": {
+				"value": "@dataset().TargetTable",
+				"type": "Expression"
+			}
+		}
+	},
+	"type": "Microsoft.DataFactory/factories/datasets"
+}
