@@ -1,0 +1,797 @@
+{
+	"$schema": "http://schema.management.azure.com/schemas/2015-01-01/deploymentTemplate.json#",
+	"contentVersion": "1.0.0.0",
+	"parameters": {
+		"factoryName": {
+			"type": "string",
+			"metadata": "Data Factory name",
+			"defaultValue": "DFHANHNV"
+		},
+		"ADLSGen2_accountKey": {
+			"type": "secureString",
+			"metadata": "Secure string for 'accountKey' of 'ADLSGen2'"
+		},
+		"AzureSqlDatabase_connectionString": {
+			"type": "secureString",
+			"metadata": "Secure string for 'connectionString' of 'AzureSqlDatabase'"
+		},
+		"IncrementalControl_connectionString": {
+			"type": "secureString",
+			"metadata": "Secure string for 'connectionString' of 'IncrementalControl'"
+		},
+		"IncrementalSink_connectionString": {
+			"type": "secureString",
+			"metadata": "Secure string for 'connectionString' of 'IncrementalSink'"
+		},
+		"IncrementalSource_connectionString": {
+			"type": "secureString",
+			"metadata": "Secure string for 'connectionString' of 'IncrementalSource'"
+		},
+		"ADLSGen2_properties_typeProperties_url": {
+			"type": "string",
+			"defaultValue": "https://sahanhnv.dfs.core.windows.net/"
+		}
+	},
+	"variables": {
+		"factoryId": "[concat('Microsoft.DataFactory/factories/', parameters('factoryName'))]"
+	},
+	"resources": [
+		{
+			"name": "[concat(parameters('factoryName'), '/CaptureMetadataControlTable')]",
+			"type": "Microsoft.DataFactory/factories/pipelines",
+			"apiVersion": "2018-06-01",
+			"properties": {
+				"activities": [
+					{
+						"name": "LookupControlTable",
+						"type": "Lookup",
+						"dependsOn": [],
+						"policy": {
+							"timeout": "0.12:00:00",
+							"retry": 0,
+							"retryIntervalInSeconds": 30,
+							"secureOutput": false,
+							"secureInput": false
+						},
+						"userProperties": [],
+						"typeProperties": {
+							"source": {
+								"type": "AzureSqlSource",
+								"queryTimeout": "02:00:00",
+								"partitionOption": "None"
+							},
+							"dataset": {
+								"referenceName": "StaticControlTable",
+								"type": "DatasetReference",
+								"parameters": {}
+							},
+							"firstRowOnly": false
+						}
+					},
+					{
+						"name": "ForEachRow",
+						"type": "ForEach",
+						"dependsOn": [
+							{
+								"activity": "LookupControlTable",
+								"dependencyConditions": [
+									"Succeeded"
+								]
+							}
+						],
+						"userProperties": [],
+						"typeProperties": {
+							"items": {
+								"value": "@activity('LookupControlTable').output.value",
+								"type": "Expression"
+							},
+							"activities": [
+								{
+									"name": "CopyFromBlobToSQL",
+									"type": "Copy",
+									"dependsOn": [],
+									"policy": {
+										"timeout": "0.12:00:00",
+										"retry": 0,
+										"retryIntervalInSeconds": 30,
+										"secureOutput": false,
+										"secureInput": false
+									},
+									"userProperties": [],
+									"typeProperties": {
+										"source": {
+											"type": "DelimitedTextSource",
+											"storeSettings": {
+												"type": "AzureBlobStorageReadSettings",
+												"recursive": true,
+												"enablePartitionDiscovery": false
+											},
+											"formatSettings": {
+												"type": "DelimitedTextReadSettings"
+											}
+										},
+										"sink": {
+											"type": "AzureSqlSink",
+											"writeBehavior": "insert",
+											"sqlWriterUseTableLock": false
+										},
+										"enableStaging": false,
+										"translator": {
+											"value": "@json(item().TargetJson)",
+											"type": "Expression"
+										}
+									},
+									"inputs": [
+										{
+											"referenceName": "DynamicSourceDataset",
+											"type": "DatasetReference",
+											"parameters": {
+												"ContainerName": {
+													"value": "@trim(item().ContainerName)",
+													"type": "Expression"
+												},
+												"DirectoryName": {
+													"value": "@trim(item().DirectoryName)",
+													"type": "Expression"
+												},
+												"SourceFile": {
+													"value": "@trim(item().SourceFile)",
+													"type": "Expression"
+												}
+											}
+										}
+									],
+									"outputs": [
+										{
+											"referenceName": "DynamicSinkDataset",
+											"type": "DatasetReference",
+											"parameters": {
+												"TargetDatabase": {
+													"value": "item().TargetDatabase",
+													"type": "Expression"
+												},
+												"TargetSchema": {
+													"value": "item().TargetSchema",
+													"type": "Expression"
+												},
+												"TargetTable": {
+													"value": "item().TargetTable ",
+													"type": "Expression"
+												}
+											}
+										}
+									]
+								},
+								{
+									"name": "UpdatePipelineAndRunData",
+									"type": "Script",
+									"dependsOn": [
+										{
+											"activity": "CopyFromBlobToSQL",
+											"dependencyConditions": [
+												"Succeeded"
+											]
+										}
+									],
+									"policy": {
+										"timeout": "0.12:00:00",
+										"retry": 0,
+										"retryIntervalInSeconds": 30,
+										"secureOutput": false,
+										"secureInput": false
+									},
+									"userProperties": [],
+									"linkedServiceName": {
+										"referenceName": "IncrementalControl",
+										"type": "LinkedServiceReference"
+									},
+									"typeProperties": {
+										"scripts": [
+											{
+												"type": "Query",
+												"text": {
+													"value": "update dbo.MetadataControlTable\nset Pipeline_Name = '@{pipeline().Pipeline}',\nRunId ='@{pipeline().RunId}',\nActivityStart='@{activity('CopyFromBlobToSQL').output.executionDetails[0].start}',\nActivityEnd = '@{utcNow()}',\nActivityStatus = '@{activity('CopyFromBlobToSQL').output.executionDetails[0].status}',\nFilesRead = '@{activity('CopyFromBlobToSQL').output.filesRead}',\nRowsRead = '@{activity('CopyFromBlobToSQL').output.rowsRead}',\nSourcePeakConnections = '@{activity('CopyFromBlobToSQL').output.sourcePeakConnections}',\nRowsWritten = @{activity('CopyFromBlobToSQL').output.rowsCopied},\nSinkPeakConnections = '@{activity('CopyFromBlobToSQL').output.sinkPeakConnections}',\nUsedDIUs = '@{activity('CopyFromBlobToSQL').output.usedDataIntegrationUnits}',\nUsedParallelCopies ='@{activity('CopyFromBlobToSQL').output.usedParallelCopies}',\nCopyDuration_inseconds ='@{activity('CopyFromBlobToSQL').output.copyDuration}',\nCopyThroughput_inbytespersecond='@{mul(activity('CopyFromBlobToSQL').output.throughput,1024)}'\nwhere ContainerName = '@{item().ContainerName}'\n and DirectoryName = '@{item().DirectoryName}'\n and SourceFile = '@{item().SourceFile}'\n and TargetDatabase = '@{item().TargetDatabase}'\n and TargetSchema = '@{item().TargetSchema}'\n and TargetTable = '@{item().TargetTable}'",
+													"type": "Expression"
+												}
+											}
+										],
+										"scriptBlockExecutionTimeout": "02:00:00"
+									}
+								}
+							]
+						}
+					}
+				],
+				"policy": {
+					"elapsedTimeMetric": {}
+				},
+				"annotations": [],
+				"lastPublishTime": "2024-04-15T04:48:54Z"
+			},
+			"dependsOn": [
+				"[concat(variables('factoryId'), '/datasets/StaticControlTable')]",
+				"[concat(variables('factoryId'), '/datasets/DynamicSourceDataset')]",
+				"[concat(variables('factoryId'), '/datasets/DynamicSinkDataset')]",
+				"[concat(variables('factoryId'), '/linkedServices/IncrementalControl')]"
+			]
+		},
+		{
+			"name": "[concat(parameters('factoryName'), '/TransformMovies')]",
+			"type": "Microsoft.DataFactory/factories/pipelines",
+			"apiVersion": "2018-06-01",
+			"properties": {
+				"activities": [
+					{
+						"name": "TransformMovies",
+						"type": "ExecuteDataFlow",
+						"dependsOn": [],
+						"policy": {
+							"timeout": "0.12:00:00",
+							"retry": 0,
+							"retryIntervalInSeconds": 30,
+							"secureOutput": false,
+							"secureInput": false
+						},
+						"userProperties": [],
+						"typeProperties": {
+							"dataflow": {
+								"referenceName": "dataflow1",
+								"type": "DataFlowReference",
+								"parameters": {},
+								"datasetParameters": {
+									"MoviesDB": {},
+									"Sink": {}
+								}
+							},
+							"staging": {},
+							"compute": {
+								"coreCount": 8,
+								"computeType": "General"
+							},
+							"traceLevel": "Fine"
+						}
+					}
+				],
+				"policy": {
+					"elapsedTimeMetric": {}
+				},
+				"annotations": [],
+				"lastPublishTime": "2024-04-10T06:54:26Z"
+			},
+			"dependsOn": [
+				"[concat(variables('factoryId'), '/dataflows/dataflow1')]"
+			]
+		},
+		{
+			"name": "[concat(parameters('factoryName'), '/AzureSqlTable')]",
+			"type": "Microsoft.DataFactory/factories/datasets",
+			"apiVersion": "2018-06-01",
+			"properties": {
+				"linkedServiceName": {
+					"referenceName": "AzureSqlDatabase",
+					"type": "LinkedServiceReference",
+					"parameters": {
+						"DatabaseName": "sqllearning",
+						"ServerName": "sqldshanhnv.database.windows.net"
+					}
+				},
+				"parameters": {
+					"SchemaName": {
+						"type": "String",
+						"defaultValue": "dbo"
+					},
+					"TableName": {
+						"type": "String",
+						"defaultValue": "table_name"
+					}
+				},
+				"annotations": [],
+				"type": "AzureSqlTable",
+				"schema": [],
+				"typeProperties": {
+					"schema": {
+						"value": "@dataset().SchemaName",
+						"type": "Expression"
+					},
+					"table": {
+						"value": "@dataset().TableName",
+						"type": "Expression"
+					}
+				}
+			},
+			"dependsOn": [
+				"[concat(variables('factoryId'), '/linkedServices/AzureSqlDatabase')]"
+			]
+		},
+		{
+			"name": "[concat(parameters('factoryName'), '/DynamicSinkDataset')]",
+			"type": "Microsoft.DataFactory/factories/datasets",
+			"apiVersion": "2018-06-01",
+			"properties": {
+				"linkedServiceName": {
+					"referenceName": "IncrementalSink",
+					"type": "LinkedServiceReference",
+					"parameters": {
+						"TargetDatabase": {
+							"value": "@dataset().TargetDatabase",
+							"type": "Expression"
+						},
+						"TargetSchema": {
+							"value": "@dataset().TargetSchema",
+							"type": "Expression"
+						},
+						"TargetTable": {
+							"value": "@dataset().TargetTable",
+							"type": "Expression"
+						}
+					}
+				},
+				"parameters": {
+					"TargetDatabase": {
+						"type": "String",
+						"defaultValue": "database"
+					},
+					"TargetSchema": {
+						"type": "String",
+						"defaultValue": "schema"
+					},
+					"TargetTable": {
+						"type": "String",
+						"defaultValue": "table"
+					}
+				},
+				"annotations": [],
+				"type": "AzureSqlTable",
+				"schema": [],
+				"typeProperties": {
+					"schema": {
+						"value": "@dataset().TargetSchema",
+						"type": "Expression"
+					},
+					"table": {
+						"value": "@dataset().TargetTable",
+						"type": "Expression"
+					}
+				}
+			},
+			"dependsOn": [
+				"[concat(variables('factoryId'), '/linkedServices/IncrementalSink')]"
+			]
+		},
+		{
+			"name": "[concat(parameters('factoryName'), '/DynamicSourceDataset')]",
+			"type": "Microsoft.DataFactory/factories/datasets",
+			"apiVersion": "2018-06-01",
+			"properties": {
+				"linkedServiceName": {
+					"referenceName": "IncrementalSource",
+					"type": "LinkedServiceReference",
+					"parameters": {
+						"ContainerName": "container",
+						"DirectoryName": "directory",
+						"SourceFile": "file"
+					}
+				},
+				"parameters": {
+					"ContainerName": {
+						"type": "String",
+						"defaultValue": "container"
+					},
+					"DirectoryName": {
+						"type": "String",
+						"defaultValue": "directory"
+					},
+					"SourceFile": {
+						"type": "String",
+						"defaultValue": "file"
+					}
+				},
+				"annotations": [],
+				"type": "DelimitedText",
+				"typeProperties": {
+					"location": {
+						"type": "AzureBlobStorageLocation",
+						"fileName": {
+							"value": "@dataset().SourceFile",
+							"type": "Expression"
+						},
+						"folderPath": {
+							"value": "@dataset().DirectoryName",
+							"type": "Expression"
+						},
+						"container": {
+							"value": "@dataset().ContainerName",
+							"type": "Expression"
+						}
+					},
+					"columnDelimiter": "\t",
+					"escapeChar": "\\",
+					"firstRowAsHeader": true,
+					"quoteChar": "\""
+				},
+				"schema": []
+			},
+			"dependsOn": [
+				"[concat(variables('factoryId'), '/linkedServices/IncrementalSource')]"
+			]
+		},
+		{
+			"name": "[concat(parameters('factoryName'), '/MoviesDB')]",
+			"type": "Microsoft.DataFactory/factories/datasets",
+			"apiVersion": "2018-06-01",
+			"properties": {
+				"linkedServiceName": {
+					"referenceName": "ADLSGen2",
+					"type": "LinkedServiceReference"
+				},
+				"annotations": [],
+				"type": "DelimitedText",
+				"typeProperties": {
+					"location": {
+						"type": "AzureBlobFSLocation",
+						"fileName": "moviesDB.csv",
+						"fileSystem": "sample-data"
+					},
+					"columnDelimiter": ",",
+					"escapeChar": "\\",
+					"firstRowAsHeader": true,
+					"quoteChar": "\""
+				},
+				"schema": [
+					{
+						"name": "Film",
+						"type": "String"
+					},
+					{
+						"name": "Genre",
+						"type": "String"
+					},
+					{
+						"name": "Lead Studio",
+						"type": "String"
+					},
+					{
+						"name": "Audience score %",
+						"type": "String"
+					},
+					{
+						"name": "Profitability",
+						"type": "String"
+					},
+					{
+						"name": "Rotten Tomatoes %",
+						"type": "String"
+					},
+					{
+						"name": "Worldwide Gross",
+						"type": "String"
+					},
+					{
+						"name": "Year",
+						"type": "String"
+					}
+				]
+			},
+			"dependsOn": [
+				"[concat(variables('factoryId'), '/linkedServices/ADLSGen2')]"
+			]
+		},
+		{
+			"name": "[concat(parameters('factoryName'), '/MoviesSink')]",
+			"type": "Microsoft.DataFactory/factories/datasets",
+			"apiVersion": "2018-06-01",
+			"properties": {
+				"linkedServiceName": {
+					"referenceName": "ADLSGen2",
+					"type": "LinkedServiceReference"
+				},
+				"annotations": [],
+				"type": "DelimitedText",
+				"typeProperties": {
+					"location": {
+						"type": "AzureBlobFSLocation",
+						"folderPath": "output",
+						"fileSystem": "sample-data"
+					},
+					"columnDelimiter": ",",
+					"escapeChar": "\\",
+					"firstRowAsHeader": true,
+					"quoteChar": "\""
+				},
+				"schema": []
+			},
+			"dependsOn": [
+				"[concat(variables('factoryId'), '/linkedServices/ADLSGen2')]"
+			]
+		},
+		{
+			"name": "[concat(parameters('factoryName'), '/StaticControlTable')]",
+			"type": "Microsoft.DataFactory/factories/datasets",
+			"apiVersion": "2018-06-01",
+			"properties": {
+				"linkedServiceName": {
+					"referenceName": "IncrementalControl",
+					"type": "LinkedServiceReference"
+				},
+				"annotations": [],
+				"type": "AzureSqlTable",
+				"schema": [
+					{
+						"name": "ContainerName",
+						"type": "nchar"
+					},
+					{
+						"name": "SourceFile",
+						"type": "nchar"
+					},
+					{
+						"name": "TargetDatabase",
+						"type": "nchar"
+					},
+					{
+						"name": "TargetSchema",
+						"type": "nchar"
+					},
+					{
+						"name": "TargetTable",
+						"type": "nchar"
+					},
+					{
+						"name": "TargetJson",
+						"type": "nvarchar"
+					},
+					{
+						"name": "Pipeline_Name",
+						"type": "nvarchar"
+					},
+					{
+						"name": "RunId",
+						"type": "nvarchar"
+					},
+					{
+						"name": "ActivityStart",
+						"type": "nvarchar"
+					},
+					{
+						"name": "ActivityEnd",
+						"type": "nvarchar"
+					},
+					{
+						"name": "ActivityStatus",
+						"type": "nvarchar"
+					},
+					{
+						"name": "FilesRead",
+						"type": "int",
+						"precision": 10
+					},
+					{
+						"name": "RowsRead",
+						"type": "bigint",
+						"precision": 19
+					},
+					{
+						"name": "SourcePeakConnections",
+						"type": "int",
+						"precision": 10
+					},
+					{
+						"name": "RowsWritten",
+						"type": "bigint",
+						"precision": 19
+					},
+					{
+						"name": "SinkPeakConnections",
+						"type": "int",
+						"precision": 10
+					},
+					{
+						"name": "UsedDIUs",
+						"type": "int",
+						"precision": 10
+					},
+					{
+						"name": "UsedParallelCopies",
+						"type": "int",
+						"precision": 10
+					},
+					{
+						"name": "CopyDuration_inseconds",
+						"type": "bigint",
+						"precision": 19
+					},
+					{
+						"name": "CopyThroughput_inbytespersecond",
+						"type": "decimal",
+						"precision": 18,
+						"scale": 0
+					},
+					{
+						"name": "Errors",
+						"type": "nvarchar"
+					}
+				],
+				"typeProperties": {
+					"schema": "dbo",
+					"table": "MetadataControlTable"
+				}
+			},
+			"dependsOn": [
+				"[concat(variables('factoryId'), '/linkedServices/IncrementalControl')]"
+			]
+		},
+		{
+			"name": "[concat(parameters('factoryName'), '/ADLSGen2')]",
+			"type": "Microsoft.DataFactory/factories/linkedServices",
+			"apiVersion": "2018-06-01",
+			"properties": {
+				"annotations": [],
+				"type": "AzureBlobFS",
+				"typeProperties": {
+					"url": "[parameters('ADLSGen2_properties_typeProperties_url')]",
+					"accountKey": {
+						"type": "SecureString",
+						"value": "[parameters('ADLSGen2_accountKey')]"
+					}
+				}
+			},
+			"dependsOn": []
+		},
+		{
+			"name": "[concat(parameters('factoryName'), '/AzureSqlDatabase')]",
+			"type": "Microsoft.DataFactory/factories/linkedServices",
+			"apiVersion": "2018-06-01",
+			"properties": {
+				"parameters": {
+					"DatabaseName": {
+						"type": "string",
+						"defaultValue": "sqllearning"
+					},
+					"ServerName": {
+						"type": "string",
+						"defaultValue": "sqldshanhnv.database.windows.net"
+					}
+				},
+				"annotations": [],
+				"type": "AzureSqlDatabase",
+				"typeProperties": {
+					"connectionString": "[parameters('AzureSqlDatabase_connectionString')]"
+				}
+			},
+			"dependsOn": []
+		},
+		{
+			"name": "[concat(parameters('factoryName'), '/IncrementalControl')]",
+			"type": "Microsoft.DataFactory/factories/linkedServices",
+			"apiVersion": "2018-06-01",
+			"properties": {
+				"annotations": [],
+				"type": "AzureSqlDatabase",
+				"typeProperties": {
+					"connectionString": "[parameters('IncrementalControl_connectionString')]"
+				}
+			},
+			"dependsOn": []
+		},
+		{
+			"name": "[concat(parameters('factoryName'), '/IncrementalSink')]",
+			"type": "Microsoft.DataFactory/factories/linkedServices",
+			"apiVersion": "2018-06-01",
+			"properties": {
+				"parameters": {
+					"TargetDatabase": {
+						"type": "string",
+						"defaultValue": "database"
+					},
+					"TargetSchema": {
+						"type": "string",
+						"defaultValue": "schema"
+					},
+					"TargetTable": {
+						"type": "string",
+						"defaultValue": "table"
+					}
+				},
+				"annotations": [],
+				"type": "AzureSqlDatabase",
+				"typeProperties": {
+					"connectionString": "[parameters('IncrementalSink_connectionString')]"
+				}
+			},
+			"dependsOn": []
+		},
+		{
+			"name": "[concat(parameters('factoryName'), '/IncrementalSource')]",
+			"type": "Microsoft.DataFactory/factories/linkedServices",
+			"apiVersion": "2018-06-01",
+			"properties": {
+				"parameters": {
+					"ContainerName": {
+						"type": "string",
+						"defaultValue": "container"
+					},
+					"DirectoryName": {
+						"type": "string",
+						"defaultValue": "directory"
+					},
+					"SourceFile": {
+						"type": "string",
+						"defaultValue": "file"
+					}
+				},
+				"annotations": [],
+				"type": "AzureBlobStorage",
+				"typeProperties": {
+					"connectionString": "[parameters('IncrementalSource_connectionString')]"
+				}
+			},
+			"dependsOn": []
+		},
+		{
+			"name": "[concat(parameters('factoryName'), '/dataflow1')]",
+			"type": "Microsoft.DataFactory/factories/dataflows",
+			"apiVersion": "2018-06-01",
+			"properties": {
+				"type": "MappingDataFlow",
+				"typeProperties": {
+					"sources": [
+						{
+							"dataset": {
+								"referenceName": "MoviesDB",
+								"type": "DatasetReference"
+							},
+							"name": "MoviesDB"
+						}
+					],
+					"sinks": [
+						{
+							"dataset": {
+								"referenceName": "MoviesSink",
+								"type": "DatasetReference"
+							},
+							"name": "Sink"
+						}
+					],
+					"transformations": [
+						{
+							"name": "FilterYears"
+						},
+						{
+							"name": "AggregateComedyRatings"
+						}
+					],
+					"scriptLines": [
+						"source(output(",
+						"          Film as string,",
+						"          Genre as string,",
+						"          {Lead Studio} as string,",
+						"          {Audience score %} as string,",
+						"          Profitability as string,",
+						"          {Rotten Tomatoes %} as string,",
+						"          {Worldwide Gross} as string,",
+						"          Year as string",
+						"     ),",
+						"     allowSchemaDrift: true,",
+						"     validateSchema: false,",
+						"     ignoreNoFilesFound: false) ~> MoviesDB",
+						"MoviesDB filter(toInteger(Year) >= 2008 && toInteger(Year) <= 2010 && rlike(Genre, 'Comedy')) ~> FilterYears",
+						"FilterYears aggregate(groupBy(Year),",
+						"     AverageComedyRatingAudience = avg(toInteger({Audience score %})),",
+						"          AverageComedyRatingRotten = avg(toInteger({Rotten Tomatoes %}))) ~> AggregateComedyRatings",
+						"AggregateComedyRatings sink(allowSchemaDrift: true,",
+						"     validateSchema: false,",
+						"     umask: 0022,",
+						"     preCommands: [],",
+						"     postCommands: [],",
+						"     skipDuplicateMapInputs: true,",
+						"     skipDuplicateMapOutputs: true) ~> Sink"
+					]
+				}
+			},
+			"dependsOn": [
+				"[concat(variables('factoryId'), '/datasets/MoviesDB')]",
+				"[concat(variables('factoryId'), '/datasets/MoviesSink')]"
+			]
+		}
+	]
+}

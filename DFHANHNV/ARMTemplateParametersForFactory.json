@@ -1,0 +1,27 @@
+{
+	"$schema": "https://schema.management.azure.com/schemas/2015-01-01/deploymentParameters.json#",
+	"contentVersion": "1.0.0.0",
+	"parameters": {
+		"factoryName": {
+			"value": "DFHANHNV"
+		},
+		"ADLSGen2_accountKey": {
+			"value": ""
+		},
+		"AzureSqlDatabase_connectionString": {
+			"value": ""
+		},
+		"IncrementalControl_connectionString": {
+			"value": ""
+		},
+		"IncrementalSink_connectionString": {
+			"value": ""
+		},
+		"IncrementalSource_connectionString": {
+			"value": ""
+		},
+		"ADLSGen2_properties_typeProperties_url": {
+			"value": "https://sahanhnv.dfs.core.windows.net/"
+		}
+	}
+}
