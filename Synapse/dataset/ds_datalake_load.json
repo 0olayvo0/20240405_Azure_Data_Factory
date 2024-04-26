@@ -1,0 +1,20 @@
+{
+	"name": "ds_datalake_load",
+	"properties": {
+		"linkedServiceName": {
+			"referenceName": "ls_datalake",
+			"type": "LinkedServiceReference"
+		},
+		"annotations": [],
+		"type": "Parquet",
+		"typeProperties": {
+			"location": {
+				"type": "AzureBlobFSLocation",
+				"fileName": "@{pipeline().parameters.p_tablename}/@{formatDateTime(utcnow(),'yyyy')}/@{formatDateTime(utcnow(),'MM')}/@{formatDateTime(utcnow(),'dd')}/@{pipeline().parameters.p_tablename}@{formatDateTime(utcnow(),'HH')}@{formatDateTime(utcnow(),'mm')}.parquet",
+				"folderPath": "@concat(pipeline().parameters.p_lake_dst_folder,pipeline().parameters.p_src_db)"
+			},
+			"compressionCodec": "snappy"
+		},
+		"schema": []
+	}
+}

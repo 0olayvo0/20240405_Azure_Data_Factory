@@ -1,0 +1,82 @@
+{
+	"name": "adf_FullLoad",
+	"properties": {
+		"activities": [
+			{
+				"name": "Copy-Table",
+				"type": "Copy",
+				"dependsOn": [],
+				"policy": {
+					"timeout": "0.12:00:00",
+					"retry": 0,
+					"retryIntervalInSeconds": 30,
+					"secureOutput": false,
+					"secureInput": false
+				},
+				"userProperties": [],
+				"typeProperties": {
+					"source": {
+						"type": "AzureSqlSource",
+						"sqlReaderQuery": {
+							"value": "USE @{pipeline().parameters.p_src_db}\nSELECT * FROM @{pipeline().parameters.p_tablename}",
+							"type": "Expression"
+						},
+						"queryTimeout": "02:00:00",
+						"partitionOption": "None"
+					},
+					"sink": {
+						"type": "ParquetSink",
+						"storeSettings": {
+							"type": "AzureBlobFSWriteSettings"
+						},
+						"formatSettings": {
+							"type": "ParquetWriteSettings"
+						}
+					},
+					"enableStaging": false,
+					"translator": {
+						"type": "TabularTranslator",
+						"typeConversion": true,
+						"typeConversionSettings": {
+							"allowDataTruncation": true,
+							"treatBooleanAsNumber": false
+						}
+					}
+				},
+				"inputs": [
+					{
+						"referenceName": "ds_sqlserver_src",
+						"type": "DatasetReference"
+					}
+				],
+				"outputs": [
+					{
+						"referenceName": "ds_datalake_load",
+						"type": "DatasetReference"
+					}
+				]
+			}
+		],
+		"parameters": {
+			"p_tablename": {
+				"type": "string"
+			},
+			"p_src_db": {
+				"type": "string"
+			},
+			"p_lake_dst_folder": {
+				"type": "string"
+			},
+			"p_batch_id": {
+				"type": "int"
+			},
+			"p_run_date": {
+				"type": "string"
+			},
+			"p_param_id": {
+				"type": "int"
+			}
+		},
+		"annotations": []
+	}
+}
