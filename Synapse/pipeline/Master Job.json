@@ -26,6 +26,62 @@
 						"type": "DatasetReference"
 					}
 				}
+			},
+			{
+				"name": "Set-Batch-Id",
+				"type": "SetVariable",
+				"dependsOn": [
+					{
+						"activity": "Get-Batch-Id",
+						"dependencyConditions": [
+							"Succeeded"
+						]
+					}
+				],
+				"policy": {
+					"secureOutput": false,
+					"secureInput": false
+				},
+				"userProperties": [],
+				"typeProperties": {
+					"variableName": "var_Batch_Id",
+					"value": {
+						"value": "@string(activity('Get-Batch-Id').output.firstRow.BatchId)",
+						"type": "Expression"
+					}
+				}
+			},
+			{
+				"name": "Get-Tables",
+				"type": "Lookup",
+				"dependsOn": [
+					{
+						"activity": "Set-Batch-Id",
+						"dependencyConditions": [
+							"Succeeded"
+						]
+					}
+				],
+				"policy": {
+					"timeout": "0.12:00:00",
+					"retry": 0,
+					"retryIntervalInSeconds": 30,
+					"secureOutput": false,
+					"secureInput": false
+				},
+				"userProperties": [],
+				"typeProperties": {
+					"source": {
+						"type": "AzureSqlSource",
+						"queryTimeout": "02:00:00",
+						"partitionOption": "None"
+					},
+					"dataset": {
+						"referenceName": "ds_job_config",
+						"type": "DatasetReference"
+					},
+					"firstRowOnly": false
+				}
 			}
 		],
 		"parameters": {
