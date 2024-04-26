@@ -1,0 +1,51 @@
+{
+	"name": "Master Job",
+	"properties": {
+		"activities": [
+			{
+				"name": "Get-Batch-Id",
+				"type": "Lookup",
+				"dependsOn": [],
+				"policy": {
+					"timeout": "0.12:00:00",
+					"retry": 0,
+					"retryIntervalInSeconds": 30,
+					"secureOutput": false,
+					"secureInput": false
+				},
+				"userProperties": [],
+				"typeProperties": {
+					"source": {
+						"type": "AzureSqlSource",
+						"sqlReaderStoredProcedureName": "[dbo].[sp_GetBatchId_ntemp]",
+						"queryTimeout": "02:00:00",
+						"partitionOption": "None"
+					},
+					"dataset": {
+						"referenceName": "ds_pipeline_param",
+						"type": "DatasetReference"
+					}
+				}
+			}
+		],
+		"parameters": {
+			"p_run_date": {
+				"type": "string"
+			}
+		},
+		"variables": {
+			"var_Batch_Id": {
+				"type": "String"
+			},
+			"var_Allow_Running": {
+				"type": "String"
+			},
+			"var_Incremental_Load": {
+				"type": "String"
+			}
+		},
+		"annotations": [],
+		"lastPublishTime": "2024-04-24T09:34:27Z"
+	},
+	"type": "Microsoft.Synapse/workspaces/pipelines"
+}

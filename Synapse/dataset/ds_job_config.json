@@ -1,0 +1,51 @@
+{
+	"name": "ds_job_config",
+	"properties": {
+		"linkedServiceName": {
+			"referenceName": "ls_config",
+			"type": "LinkedServiceReference"
+		},
+		"annotations": [],
+		"type": "AzureSqlTable",
+		"schema": [
+			{
+				"name": "paramId",
+				"type": "int",
+				"precision": 10
+			},
+			{
+				"name": "src_db",
+				"type": "varchar"
+			},
+			{
+				"name": "src_table",
+				"type": "varchar"
+			},
+			{
+				"name": "incremental_load",
+				"type": "bit"
+			},
+			{
+				"name": "multiple_run",
+				"type": "bit"
+			},
+			{
+				"name": "layer_load",
+				"type": "varchar"
+			},
+			{
+				"name": "lake_dst_folder",
+				"type": "varchar"
+			},
+			{
+				"name": "water_mark_column",
+				"type": "varchar"
+			}
+		],
+		"typeProperties": {
+			"schema": "dbo",
+			"table": "job_config_ntemp"
+		}
+	},
+	"type": "Microsoft.Synapse/workspaces/datasets"
+}
