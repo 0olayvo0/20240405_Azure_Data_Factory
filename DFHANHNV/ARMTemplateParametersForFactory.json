@@ -8,6 +8,9 @@
 		"ADLSGen2_accountKey": {
 			"value": ""
 		},
+		"AzureBlobStorage_connectionString": {
+			"value": ""
+		},
 		"AzureSqlDatabase_connectionString": {
 			"value": ""
 		},
@@ -22,6 +25,9 @@
 		},
 		"ADLSGen2_properties_typeProperties_url": {
 			"value": "https://sahanhnv.dfs.core.windows.net/"
+		},
+		"RestService_properties_typeProperties_url": {
+			"value": "https://dummy.restapiexample.com/api/v1/employees"
 		}
 	}
 }

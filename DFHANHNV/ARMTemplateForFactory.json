@@ -11,6 +11,10 @@
 			"type": "secureString",
 			"metadata": "Secure string for 'accountKey' of 'ADLSGen2'"
 		},
+		"AzureBlobStorage_connectionString": {
+			"type": "secureString",
+			"metadata": "Secure string for 'connectionString' of 'AzureBlobStorage'"
+		},
 		"AzureSqlDatabase_connectionString": {
 			"type": "secureString",
 			"metadata": "Secure string for 'connectionString' of 'AzureSqlDatabase'"
@@ -30,6 +34,10 @@
 		"ADLSGen2_properties_typeProperties_url": {
 			"type": "string",
 			"defaultValue": "https://sahanhnv.dfs.core.windows.net/"
+		},
+		"RestService_properties_typeProperties_url": {
+			"type": "string",
+			"defaultValue": "https://dummy.restapiexample.com/api/v1/employees"
 		}
 	},
 	"variables": {
@@ -255,6 +263,139 @@
 			]
 		},
 		{
+			"name": "[concat(parameters('factoryName'), '/RestAPI2Blob')]",
+			"type": "Microsoft.DataFactory/factories/pipelines",
+			"apiVersion": "2018-06-01",
+			"properties": {
+				"activities": [
+					{
+						"name": "Copy Data",
+						"type": "Copy",
+						"dependsOn": [],
+						"policy": {
+							"timeout": "0.12:00:00",
+							"retry": 0,
+							"retryIntervalInSeconds": 30,
+							"secureOutput": false,
+							"secureInput": false
+						},
+						"userProperties": [],
+						"typeProperties": {
+							"source": {
+								"type": "RestSource",
+								"httpRequestTimeout": "00:01:40",
+								"requestInterval": "00.00:00:00.010",
+								"requestMethod": "GET"
+							},
+							"sink": {
+								"type": "DelimitedTextSink",
+								"storeSettings": {
+									"type": "AzureBlobStorageWriteSettings",
+									"copyBehavior": "FlattenHierarchy"
+								},
+								"formatSettings": {
+									"type": "DelimitedTextWriteSettings",
+									"quoteAllText": true,
+									"fileExtension": ".txt"
+								}
+							},
+							"enableStaging": false,
+							"translator": {
+								"type": "TabularTranslator",
+								"mappings": [
+									{
+										"source": {
+											"path": "$['status']"
+										},
+										"sink": {
+											"name": "status",
+											"type": "String"
+										}
+									},
+									{
+										"source": {
+											"path": "$['data'][0]['id']"
+										},
+										"sink": {
+											"name": "id",
+											"type": "Int32"
+										}
+									},
+									{
+										"source": {
+											"path": "$['data'][0]['employee_name']"
+										},
+										"sink": {
+											"name": "employee_name",
+											"type": "String"
+										}
+									},
+									{
+										"source": {
+											"path": "$['data'][0]['employee_salary']"
+										},
+										"sink": {
+											"name": "employee_salary",
+											"type": "Int64"
+										}
+									},
+									{
+										"source": {
+											"path": "$['data'][0]['employee_age']"
+										},
+										"sink": {
+											"name": "employee_age",
+											"type": "Int32"
+										}
+									},
+									{
+										"source": {
+											"path": "$['data'][0]['profile_image']"
+										},
+										"sink": {
+											"name": "profile_image",
+											"type": "String"
+										}
+									},
+									{
+										"source": {
+											"path": "$['message']"
+										},
+										"sink": {
+											"name": "message",
+											"type": "String"
+										}
+									}
+								]
+							}
+						},
+						"inputs": [
+							{
+								"referenceName": "RestResource",
+								"type": "DatasetReference",
+								"parameters": {}
+							}
+						],
+						"outputs": [
+							{
+								"referenceName": "DelimitedText",
+								"type": "DatasetReference",
+								"parameters": {}
+							}
+						]
+					}
+				],
+				"policy": {
+					"elapsedTimeMetric": {}
+				},
+				"annotations": []
+			},
+			"dependsOn": [
+				"[concat(variables('factoryId'), '/datasets/RestResource')]",
+				"[concat(variables('factoryId'), '/datasets/DelimitedText')]"
+			]
+		},
+		{
 			"name": "[concat(parameters('factoryName'), '/TransformMovies')]",
 			"type": "Microsoft.DataFactory/factories/pipelines",
 			"apiVersion": "2018-06-01",
@@ -372,6 +513,34 @@
 			},
 			"dependsOn": [
 				"[concat(variables('factoryId'), '/linkedServices/AzureSqlDatabase')]"
+			]
+		},
+		{
+			"name": "[concat(parameters('factoryName'), '/DelimitedText')]",
+			"type": "Microsoft.DataFactory/factories/datasets",
+			"apiVersion": "2018-06-01",
+			"properties": {
+				"linkedServiceName": {
+					"referenceName": "AzureBlobStorage",
+					"type": "LinkedServiceReference"
+				},
+				"annotations": [],
+				"type": "DelimitedText",
+				"typeProperties": {
+					"location": {
+						"type": "AzureBlobStorageLocation",
+						"fileName": "employees.txt",
+						"container": "adf-web-api"
+					},
+					"columnDelimiter": ",",
+					"escapeChar": "\\",
+					"firstRowAsHeader": true,
+					"quoteChar": "\""
+				},
+				"schema": []
+			},
+			"dependsOn": [
+				"[concat(variables('factoryId'), '/linkedServices/AzureBlobStorage')]"
 			]
 		},
 		{
@@ -576,6 +745,24 @@
 			]
 		},
 		{
+			"name": "[concat(parameters('factoryName'), '/RestResource')]",
+			"type": "Microsoft.DataFactory/factories/datasets",
+			"apiVersion": "2018-06-01",
+			"properties": {
+				"linkedServiceName": {
+					"referenceName": "RestService",
+					"type": "LinkedServiceReference"
+				},
+				"annotations": [],
+				"type": "RestResource",
+				"typeProperties": {},
+				"schema": []
+			},
+			"dependsOn": [
+				"[concat(variables('factoryId'), '/linkedServices/RestService')]"
+			]
+		},
+		{
 			"name": "[concat(parameters('factoryName'), '/StaticControlTable')]",
 			"type": "Microsoft.DataFactory/factories/datasets",
 			"apiVersion": "2018-06-01",
@@ -709,6 +896,19 @@
 			"dependsOn": []
 		},
 		{
+			"name": "[concat(parameters('factoryName'), '/AzureBlobStorage')]",
+			"type": "Microsoft.DataFactory/factories/linkedServices",
+			"apiVersion": "2018-06-01",
+			"properties": {
+				"annotations": [],
+				"type": "AzureBlobStorage",
+				"typeProperties": {
+					"connectionString": "[parameters('AzureBlobStorage_connectionString')]"
+				}
+			},
+			"dependsOn": []
+		},
+		{
 			"name": "[concat(parameters('factoryName'), '/AzureSqlDatabase')]",
 			"type": "Microsoft.DataFactory/factories/linkedServices",
 			"apiVersion": "2018-06-01",
@@ -794,6 +994,21 @@
 				"type": "AzureBlobStorage",
 				"typeProperties": {
 					"connectionString": "[parameters('IncrementalSource_connectionString')]"
+				}
+			},
+			"dependsOn": []
+		},
+		{
+			"name": "[concat(parameters('factoryName'), '/RestService')]",
+			"type": "Microsoft.DataFactory/factories/linkedServices",
+			"apiVersion": "2018-06-01",
+			"properties": {
+				"annotations": [],
+				"type": "RestService",
+				"typeProperties": {
+					"url": "[parameters('RestService_properties_typeProperties_url')]",
+					"enableServerCertificateValidation": true,
+					"authenticationType": "Anonymous"
 				}
 			},
 			"dependsOn": []

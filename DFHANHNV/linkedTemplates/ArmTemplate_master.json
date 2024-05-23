@@ -11,6 +11,10 @@
 			"type": "secureString",
 			"metadata": "Secure string for 'accountKey' of 'ADLSGen2'"
 		},
+		"AzureBlobStorage_connectionString": {
+			"type": "secureString",
+			"metadata": "Secure string for 'connectionString' of 'AzureBlobStorage'"
+		},
 		"AzureSqlDatabase_connectionString": {
 			"type": "secureString",
 			"metadata": "Secure string for 'connectionString' of 'AzureSqlDatabase'"
@@ -30,6 +34,10 @@
 		"ADLSGen2_properties_typeProperties_url": {
 			"type": "string",
 			"defaultValue": "https://sahanhnv.dfs.core.windows.net/"
+		},
+		"RestService_properties_typeProperties_url": {
+			"type": "string",
+			"defaultValue": "https://dummy.restapiexample.com/api/v1/employees"
 		},
 		"containerUri": {
 			"type": "string",
@@ -61,6 +69,9 @@
 					"ADLSGen2_accountKey": {
 						"value": "[parameters('ADLSGen2_accountKey')]"
 					},
+					"AzureBlobStorage_connectionString": {
+						"value": "[parameters('AzureBlobStorage_connectionString')]"
+					},
 					"AzureSqlDatabase_connectionString": {
 						"value": "[parameters('AzureSqlDatabase_connectionString')]"
 					},
@@ -75,10 +86,33 @@
 					},
 					"ADLSGen2_properties_typeProperties_url": {
 						"value": "[parameters('ADLSGen2_properties_typeProperties_url')]"
+					},
+					"RestService_properties_typeProperties_url": {
+						"value": "[parameters('RestService_properties_typeProperties_url')]"
 					}
 				}
 			},
 			"dependsOn": []
+		},
+		{
+			"name": "DFHANHNV_ArmTemplate_1",
+			"type": "Microsoft.Resources/deployments",
+			"apiVersion": "2018-02-01",
+			"properties": {
+				"mode": "incremental",
+				"templateLink": {
+					"uri": "[concat(parameters('containerUri'), '/ArmTemplate_1.json', parameters('containerSasToken'))]",
+					"contentVersion": "1.0.0.0"
+				},
+				"parameters": {
+					"factoryName": {
+						"value": "[parameters('factoryName')]"
+					}
+				}
+			},
+			"dependsOn": [
+				"[resourceId('Microsoft.Resources/deployments', 'DFHANHNV_ArmTemplate_0')]"
+			]
 		}
 	]
 }
