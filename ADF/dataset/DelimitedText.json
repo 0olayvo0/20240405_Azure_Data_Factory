@@ -10,7 +10,10 @@
 		"typeProperties": {
 			"location": {
 				"type": "AzureBlobStorageLocation",
-				"fileName": "employees.txt",
+				"fileName": {
+					"value": "@concat('employees_', formatDateTime(utcnow(), 'yyyyMMdd_HHmmss'), '.txt')\r\n",
+					"type": "Expression"
+				},
 				"container": "adf-web-api"
 			},
 			"columnDelimiter": ",",
