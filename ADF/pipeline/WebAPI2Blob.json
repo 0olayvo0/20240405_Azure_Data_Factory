@@ -3,7 +3,7 @@
 	"properties": {
 		"activities": [
 			{
-				"name": "Web API",
+				"name": "Read Web API",
 				"type": "WebActivity",
 				"dependsOn": [],
 				"policy": {
@@ -17,6 +17,37 @@
 				"typeProperties": {
 					"method": "GET",
 					"url": "https://dummy.restapiexample.com/api/v1/employees"
+				}
+			},
+			{
+				"name": "Save Output",
+				"type": "WebActivity",
+				"dependsOn": [
+					{
+						"activity": "Read Web API",
+						"dependencyConditions": [
+							"Succeeded"
+						]
+					}
+				],
+				"policy": {
+					"timeout": "0.12:00:00",
+					"retry": 0,
+					"retryIntervalInSeconds": 30,
+					"secureOutput": false,
+					"secureInput": false
+				},
+				"userProperties": [],
+				"typeProperties": {
+					"method": "PUT",
+					"headers": {
+						"x-ms-blob-type": "BlockBlob"
+					},
+					"url": "https://sahanhnv.blob.core.windows.net/adf-web-api/employees.json?sp=racw&st=2024-05-23T23:00:00Z&se=2024-05-31T11:00:00Z&spr=https&sv=2022-11-02&sr=c&sig=34dgKs7SOSEZ4lrn84K1gQYsUrjaY6V%2FaXduCahQZtg%3D",
+					"body": {
+						"value": "@activity('Read Web API').output",
+						"type": "Expression"
+					}
 				}
 			}
 		],
