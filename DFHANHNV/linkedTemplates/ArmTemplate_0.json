@@ -305,7 +305,10 @@
 				"typeProperties": {
 					"location": {
 						"type": "AzureBlobStorageLocation",
-						"fileName": "employees.txt",
+						"fileName": {
+							"value": "@concat('employees_', formatDateTime(utcnow(), 'yyyyMMdd_HHmmss'), '.txt')\r\n",
+							"type": "Expression"
+						},
 						"container": "adf-web-api"
 					},
 					"columnDelimiter": ",",
@@ -861,8 +864,7 @@
 							"sink": {
 								"type": "DelimitedTextSink",
 								"storeSettings": {
-									"type": "AzureBlobStorageWriteSettings",
-									"copyBehavior": "FlattenHierarchy"
+									"type": "AzureBlobStorageWriteSettings"
 								},
 								"formatSettings": {
 									"type": "DelimitedTextWriteSettings",
@@ -876,16 +878,7 @@
 								"mappings": [
 									{
 										"source": {
-											"path": "$['status']"
-										},
-										"sink": {
-											"name": "status",
-											"type": "String"
-										}
-									},
-									{
-										"source": {
-											"path": "$['data'][0]['id']"
+											"path": "[['id']"
 										},
 										"sink": {
 											"name": "id",
@@ -894,7 +887,7 @@
 									},
 									{
 										"source": {
-											"path": "$['data'][0]['employee_name']"
+											"path": "[['employee_name']"
 										},
 										"sink": {
 											"name": "employee_name",
@@ -903,7 +896,7 @@
 									},
 									{
 										"source": {
-											"path": "$['data'][0]['employee_salary']"
+											"path": "[['employee_salary']"
 										},
 										"sink": {
 											"name": "employee_salary",
@@ -912,7 +905,7 @@
 									},
 									{
 										"source": {
-											"path": "$['data'][0]['employee_age']"
+											"path": "[['employee_age']"
 										},
 										"sink": {
 											"name": "employee_age",
@@ -921,23 +914,15 @@
 									},
 									{
 										"source": {
-											"path": "$['data'][0]['profile_image']"
+											"path": "[['profile_image']"
 										},
 										"sink": {
 											"name": "profile_image",
 											"type": "String"
 										}
-									},
-									{
-										"source": {
-											"path": "$['message']"
-										},
-										"sink": {
-											"name": "message",
-											"type": "String"
-										}
 									}
-								]
+								],
+								"collectionReference": "$['data']"
 							}
 						},
 						"inputs": [
